@@ -1,0 +1,298 @@
+===================================================================================
+                    FOOD ORDERING CHATBOT - SYSTEM ARCHITECTURE
+===================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              USER LAYER                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────┐        ┌──────────────┐        ┌──────────────┐         │
+│  │   Website    │        │   Mobile     │        │  Messenger   │         │
+│  │   Chatbot    │        │     App      │        │    Bot       │         │
+│  └──────┬───────┘        └──────┬───────┘        └──────┬───────┘         │
+│         │                       │                        │                  │
+│         └───────────────────────┼────────────────────────┘                  │
+│                                 │                                           │
+└─────────────────────────────────┼───────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           NLP LAYER (DIALOGFLOW)                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────┐    │
+│  │  Intent Classification & Entity Extraction                          │    │
+│  ├────────────────────────────────────────────────────────────────────┤    │
+│  │                                                                     │    │
+│  │  • new.order          → Extract food-item, number                  │    │
+│  │  • order.add          → Extract food-item, number                  │    │
+│  │  • order.remove       → Extract food-item                          │    │
+│  │  • order.complete     → Trigger order finalization                 │    │
+│  │  • track.order        → Extract order_id (number)                  │    │
+│  │                                                                     │    │
+│  └────────────────────────┬───────────────────────────────────────────┘    │
+│                           │                                                  │
+└───────────────────────────┼──────────────────────────────────────────────────┘
+                            │
+                            │ Webhook Request (JSON)
+                            │ POST /webhook
+                            ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          BACKEND LAYER (FASTAPI)                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                         main.py                                      │   │
+│  │                    Webhook Handler                                   │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │                                                                      │   │
+│  │  dialogflow_webhook()                                                │   │
+│  │    ├─→ handle_new_order()       ──┐                                 │   │
+│  │    ├─→ handle_add_to_order()     │                                  │   │
+│  │    ├─→ handle_remove_from_order()├─→ Routes to                      │   │
+│  │    ├─→ handle_complete_order()   │   appropriate                    │   │
+│  │    └─→ handle_track_order()     ──┘   handler                       │   │
+│  │                                                                      │   │
+│  └──────────────────────────────┬───────────────────────────────────────┘   │
+│                                 │                                            │
+│                                 ▼                                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                      order_service.py                                │   │
+│  │                     Business Logic Layer                             │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │                                                                      │   │
+│  │  • add_to_order()          → Add items to session order             │   │
+│  │  • remove_from_order()     → Remove items from session              │   │
+│  │  • complete_order()        → Save order to database                 │   │
+│  │  • track_order()           → Retrieve order from database           │   │
+│  │  • get_menu_item_price()   → Query menu prices                      │   │
+│  │                                                                      │   │
+│  │  In-Memory Session Storage: inprogress_orders{}                     │   │
+│  │                                                                      │   │
+│  └──────────────────────────────┬───────────────────────────────────────┘   │
+│                                 │                                            │
+│                                 ▼                                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                        models.py                                     │   │
+│  │                  SQLAlchemy ORM Models                               │   │
+│  ├─────────────────────────────────────────────────────────────────────┤   │
+│  │                                                                      │   │
+│  │  • Order          → order_id, status, date, total_amount            │   │
+│  │  • OrderItem      → item_id, order_id, item_name, quantity, price   │   │
+│  │  • MenuItem       → item_id, item_name, price, category             │   │
+│  │                                                                      │   │
+│  └──────────────────────────────┬───────────────────────────────────────┘   │
+│                                 │                                            │
+└─────────────────────────────────┼──────────────────────────────────────────┘
+                                  │
+                                  │ SQL Queries (SQLAlchemy)
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        DATABASE LAYER (MySQL)                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐         │
+│  │  orders          │  │  order_items     │  │  menu_items      │         │
+│  ├──────────────────┤  ├──────────────────┤  ├──────────────────┤         │
+│  │ order_id (PK)    │  │ item_id (PK)     │  │ item_id (PK)     │         │
+│  │ order_status     │  │ order_id (FK)────┼──│ item_name        │         │
+│  │ order_date       │  │ item_name        │  │ price            │         │
+│  │ total_amount     │  │ quantity         │  │ category         │         │
+│  └──────────────────┘  │ price            │  │ is_available     │         │
+│                        └──────────────────┘  └──────────────────┘         │
+│                                                                              │
+│  Database: food_ordering_db                                                  │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+===================================================================================
+                            DATA FLOW - ORDER PLACEMENT
+===================================================================================
+
+Step 1: User Input
+   "I want 2 pizzas and a coke"
+      │
+      ▼
+Step 2: Dialogflow Processing
+   Intent: new.order
+   Entities: food-item = ["Pepperoni Pizza", "Coca Cola"]
+            number = [2, 1]
+      │
+      ▼
+Step 3: Webhook Request to Backend
+   POST /webhook
+   {
+     "queryResult": {
+       "intent": {"displayName": "new.order"},
+       "parameters": {"food-item": [...], "number": [...]}
+     },
+     "session": "abc123"
+   }
+      │
+      ▼
+Step 4: Backend Processing (main.py)
+   handle_new_order() → Extracts parameters
+      │
+      ▼
+Step 5: Business Logic (order_service.py)
+   add_to_order(session_id, food_items, quantities, db)
+   • Query menu_items for prices
+   • Store in inprogress_orders[session_id]
+   • Calculate subtotals
+      │
+      ▼
+Step 6: Response to Dialogflow
+   {
+     "fulfillmentText": "Added to your order: Pizza: 2, Coke: 1..."
+   }
+      │
+      ▼
+Step 7: User Sees Response
+   "Added to your order: Pepperoni Pizza: 2, Coca Cola: 1.
+    Would you like to add more items?"
+
+===================================================================================
+                         DATA FLOW - ORDER COMPLETION
+===================================================================================
+
+Step 1: User says "That's it" or "Complete my order"
+      │
+      ▼
+Step 2: Dialogflow → Intent: order.complete
+      │
+      ▼
+Step 3: Backend → handle_complete_order()
+      │
+      ▼
+Step 4: Business Logic → complete_order(session_id, db)
+   • Retrieve inprogress_orders[session_id]
+   • Calculate total_amount
+   • Create Order record in database
+   • Create OrderItem records
+   • Commit transaction
+   • Clear session
+      │
+      ▼
+Step 5: Database
+   INSERT INTO orders (order_status, order_date, total_amount)
+   INSERT INTO order_items (order_id, item_name, quantity, price)
+      │
+      ▼
+Step 6: Response
+   "Your order has been placed! Order ID: 123. Total: $25.97"
+
+===================================================================================
+                          DATA FLOW - ORDER TRACKING
+===================================================================================
+
+Step 1: User says "Track order 123"
+      │
+      ▼
+Step 2: Dialogflow → Intent: track.order, Entity: number=123
+      │
+      ▼
+Step 3: Backend → handle_track_order(order_id)
+      │
+      ▼
+Step 4: Business Logic → track_order(order_id, db)
+   • Query orders table for order_id
+   • Query order_items for all items
+   • Format response
+      │
+      ▼
+Step 5: Database Query
+   SELECT * FROM orders WHERE order_id = 123
+   SELECT * FROM order_items WHERE order_id = 123
+      │
+      ▼
+Step 6: Response
+   "Order ID: 123
+    Status: Placed
+    Items: Pizza (x2), Coke (x1)
+    Total: $25.97"
+
+===================================================================================
+                            TECHNOLOGY STACK
+===================================================================================
+
+Frontend/Interface:
+  • Website Chatbot Widget (HTML/JS)
+  • Mobile Apps (iOS/Android)
+  • Messaging Platforms (Facebook Messenger, Telegram, etc.)
+
+NLP Engine:
+  • Google Dialogflow ES
+    - Intent Classification
+    - Entity Extraction
+    - Context Management
+    - Webhook Integration
+
+Backend Framework:
+  • FastAPI (Python 3.11)
+    - Async/await support
+    - Automatic API documentation
+    - Pydantic validation
+    - High performance
+
+Database:
+  • MySQL 8.0
+    - Relational data storage
+    - ACID transactions
+    - Foreign key constraints
+
+ORM:
+  • SQLAlchemy
+    - Object-relational mapping
+    - Connection pooling
+    - Query optimization
+
+Validation:
+  • Pydantic
+    - Request/response validation
+    - Type checking
+    - Data serialization
+
+Server:
+  • Uvicorn (ASGI server)
+  • Gunicorn (Production)
+
+Development Tools:
+  • ngrok (Local testing with Dialogflow)
+  • Virtual environment (venv)
+  • Python debugger
+
+===================================================================================
+                              KEY FEATURES
+===================================================================================
+
+✅ Session Management
+   • In-memory storage for active orders
+   • Session-based cart system
+   • Ready for Redis integration
+
+✅ Database Design
+   • Normalized schema
+   • Foreign key relationships
+   • Proper indexing
+
+✅ Error Handling
+   • Graceful error responses
+   • Database transaction rollback
+   • User-friendly error messages
+
+✅ Scalability
+   • Stateless API design
+   • Connection pooling
+   • Ready for horizontal scaling
+
+✅ Security
+   • Environment variables for secrets
+   • SQL injection prevention (ORM)
+   • Input validation (Pydantic)
+
+✅ Maintainability
+   • Modular architecture
+   • Clear separation of concerns
+   • Comprehensive documentation
+
+===================================================================================

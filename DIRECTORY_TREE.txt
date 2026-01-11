@@ -1,0 +1,49 @@
+chatbot/
+│
+├── 🔧 Core Application (Python Files)
+│   ├── main.py                      # FastAPI application & webhook endpoints
+│   ├── models.py                    # SQLAlchemy database models (Orders, OrderItems, Menu)
+│   ├── schemas.py                   # Pydantic validation schemas & DTOs
+│   ├── database.py                  # Database connection & session management
+│   ├── order_service.py             # Business logic for order operations
+│   └── config.py                    # Application configuration & settings
+│
+├── 🛠️ Setup & Utilities
+│   ├── requirements.txt             # Python package dependencies
+│   ├── .env.example                 # Environment variables template
+│   ├── .gitignore                   # Git ignore patterns
+│   ├── init_db.py                   # Database initialization (tables + sample menu)
+│   ├── db_utils.py                  # Database management CLI tool
+│   └── start_server.bat             # Windows quick-start script
+│
+├── 🧪 Testing
+│   └── test_api.py                  # Automated API testing suite
+│
+└── 📚 Documentation
+    ├── README.md                    # Main technical documentation (setup, API, testing)
+    ├── QUICKSTART.md                # Quick setup guide (step-by-step)
+    ├── IMPLEMENTATION_SUMMARY.md    # Complete project summary
+    ├── PROJECT_STRUCTURE.md         # File organization & dependencies
+    ├── DIALOGFLOW_INTENTS.md        # Dialogflow intent configuration guide
+    └── DEPLOYMENT.md                # Production deployment guide
+
+📝 Files You Need to Create:
+    └── .env                         # Copy from .env.example and add your credentials
+
+💾 Database Tables (Created by init_db.py):
+    ├── orders                       # Main orders table
+    ├── order_items                  # Order line items
+    └── menu_items                   # Available food menu (22 items)
+
+🌐 API Endpoints (Served by main.py):
+    ├── GET  /                       # Health check
+    ├── POST /webhook                # Dialogflow webhook (main integration point)
+    ├── GET  /orders/{order_id}      # Order details REST endpoint
+    └── GET  /docs                   # Auto-generated API documentation
+
+🎯 Dialogflow Intents (Configure in Dialogflow Console):
+    ├── new.order                    # Start a new order
+    ├── order.add                    # Add items to ongoing order
+    ├── order.remove                 # Remove items from order
+    ├── order.complete               # Finalize and place order
+    └── track.order                  # Track order by ID
