@@ -23,6 +23,106 @@ app = FastAPI(
     version="1.0.0"
 )
 
+@app.post("/")
+async def handle_request(request: Request, db: Session = Depends(get_db)):
+   """Handle Dialogflow webhook requests"""
+   try:
+       # Retrieve the JSON data from the request
+       payload = await request.json()
+
+       # Extract the necessary information from payload
+       # based on the structure of the WebhookRequest from Dialogflow
+       intent = payload['queryResult']['intent']['displayName']
+       parameters = payload['queryResult']['parameters']
+       session_id = payload.get('session', 'default-session')
+       
+       print(f"Received intent: {intent}")
+       print(f"Parameters: {parameters}")
+
+       # Handle different intents
+       if intent == "track.order - context: ongoing-tracking" or intent == "track.order":
+           order_id = parameters.get("number")
+           if order_id:
+               if isinstance(order_id, list):
+                   order_id = order_id[0]
+               try:
+                   order_id = int(order_id)
+                   response_text = track_order(order_id, db)
+               except (ValueError, TypeError):
+                   response_text = "Please provide a valid order ID number."
+           else:
+               response_text = "Please provide your order ID to track your order."
+           
+           return JSONResponse(content={
+               "fulfillmentText": response_text
+           })
+       
+       elif intent == "new.order":
+           food_items = parameters.get("food-item", [])
+           numbers = parameters.get("number", [])
+           
+           if not food_items:
+               response_text = "What would you like to order?"
+           else:
+               if not numbers:
+                   numbers = [1] * len(food_items)
+               if len(numbers) < len(food_items):
+                   numbers.extend([1] * (len(food_items) - len(numbers)))
+               
+               response_text = add_to_order(session_id, food_items, numbers, db)
+           
+           return JSONResponse(content={
+               "fulfillmentText": response_text
+           })
+       
+       elif intent == "order.add - context: ongoing-order":
+           food_items = parameters.get("food-item", [])
+           numbers = parameters.get("number", [])
+           
+           if not food_items:
+               response_text = "What would you like to add to your order?"
+           else:
+               if not numbers:
+                   numbers = [1] * len(food_items)
+               if len(numbers) < len(food_items):
+                   numbers.extend([1] * (len(food_items) - len(numbers)))
+               
+               response_text = add_to_order(session_id, food_items, numbers, db)
+           
+           return JSONResponse(content={
+               "fulfillmentText": response_text
+           })
+       
+       elif intent == "order.remove - context: ongoing-order":
+           food_items = parameters.get("food-item", [])
+           
+           if not food_items:
+               response_text = "What would you like to remove from your order?"
+           else:
+               response_text = remove_from_order(session_id, food_items)
+           
+           return JSONResponse(content={
+               "fulfillmentText": response_text
+           })
+       
+       elif intent == "order.complete - context: ongoing-order":
+           response_text = complete_order(session_id, db)
+           
+           return JSONResponse(content={
+               "fulfillmentText": response_text
+           })
+       
+       else:
+           # Default response for unhandled intents
+           return JSONResponse(content={
+               "fulfillmentText": "I'm not sure how to help with that. You can place a new order or track an existing one."
+           })
+   
+   except Exception as e:
+       print(f"Error processing request: {str(e)}")
+       return JSONResponse(content={
+           "fulfillmentText": "Sorry, something went wrong. Please try again."
+       })
 
 @app.on_event("startup")
 async def startup_event():
