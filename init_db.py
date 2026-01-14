@@ -39,27 +39,48 @@ def populate_menu_items():
             MenuItem(item_name="Veggie Burger", price=7.49, category="Burger", is_available=1),
             MenuItem(item_name="Bacon Burger", price=9.99, category="Burger", is_available=1),
             
-            # Pasta
-            MenuItem(item_name="Spaghetti Carbonara", price=12.99, category="Pasta", is_available=1),
-            MenuItem(item_name="Penne Arrabbiata", price=11.99, category="Pasta", is_available=1),
-            MenuItem(item_name="Fettuccine Alfredo", price=13.99, category="Pasta", is_available=1),
-            
-            # Sides
-            MenuItem(item_name="French Fries", price=3.99, category="Sides", is_available=1),
-            MenuItem(item_name="Garlic Bread", price=4.99, category="Sides", is_available=1),
-            MenuItem(item_name="Onion Rings", price=4.49, category="Sides", is_available=1),
-            MenuItem(item_name="Caesar Salad", price=5.99, category="Sides", is_available=1),
-            
-            # Drinks
-            MenuItem(item_name="Coca Cola", price=1.99, category="Drinks", is_available=1),
-            MenuItem(item_name="Pepsi", price=1.99, category="Drinks", is_available=1),
-            MenuItem(item_name="Orange Juice", price=2.99, category="Drinks", is_available=1),
-            MenuItem(item_name="Water", price=0.99, category="Drinks", is_available=1),
-            
-            # Desserts
-            MenuItem(item_name="Chocolate Cake", price=5.99, category="Desserts", is_available=1),
-            MenuItem(item_name="Ice Cream", price=3.99, category="Desserts", is_available=1),
-            MenuItem(item_name="Cheesecake", price=6.99, category="Desserts", is_available=1),
+            # sandwiches
+            MenuItem(item_name="Chicken Sandwich", price=6.99, category="Sandwich", is_available=1),
+            MenuItem(item_name="Turkey Sandwich", price=7.49, category="Sandwich", is_available=1),
+            MenuItem(item_name="Veggie Sandwich", price=6.49, category="Sandwich", is_available=1),
+            MenuItem(item_name="BLT Sandwich", price=7.99, category="Sandwich", is_available=1),
+
+            #Fries
+            MenuItem(item_name="Regular Fries", price=2.99, category="Fries", is_available=1),
+            MenuItem(item_name="Cheese Fries", price=3.99, category="Fries", is_available=1),
+            MenuItem(item_name="Bacon Fries", price=4.49, category="Fries", is_available=1),
+            MenuItem(item_name="Sweet Potato Fries", price=3.49, category="Fries", is_available=1),
+
+            #Rice
+            MenuItem(item_name="Steamed Rice", price=2.49, category="Rice", is_available=1),
+            MenuItem(item_name="Fried Rice", price=4.99, category="Rice", is_available=1),
+            MenuItem(item_name="Rice Bowl with Chicken", price=6.99, category="Rice", is_available=1),
+            MenuItem(item_name="Rice Bowl with Veggies", price=6.49, category="Rice", is_available=1),
+
+            #Biriyani
+            MenuItem(item_name="Chicken Biriyani", price=9.99, category="Biriyani", is_available=1),
+            MenuItem(item_name="Mutton Biriyani", price=11.99, category="Biriyani", is_available=1),
+            MenuItem(item_name="Veggie Biriyani", price=8.99, category="Biriyani", is_available=1),
+            MenuItem(item_name="Egg Biriyani", price=9.49, category="Biriyani", is_available=1),
+
+            #Cola
+            MenuItem(item_name="Coca Cola", price=1.99, category="Cola", is_available=1),
+            MenuItem(item_name="Pepsi", price=1.99, category="Cola", is_available=1),
+            MenuItem(item_name="Sprite", price=1.99, category="Cola", is_available=1),
+            MenuItem(item_name="Fanta", price=1.99, category="Cola", is_available=1),
+
+            #Noodles
+            MenuItem(item_name="Chicken Noodles", price=5.99, category="Noodles", is_available=1),
+            MenuItem(item_name="Veggie Noodles", price=5.49, category="Noodles", is_available=1),
+            MenuItem(item_name="Shrimp Noodles", price=6.99, category="Noodles", is_available=1),
+            MenuItem(item_name="Beef Noodles", price=6.49, category="Noodles", is_available=1),
+
+            #Ice Cream
+            MenuItem(item_name="Vanilla Ice Cream", price=2.99, category="Ice Cream", is_available=1),
+            MenuItem(item_name="Chocolate Ice Cream", price=2.99, category="Ice Cream", is_available=1),
+            MenuItem(item_name="Strawberry Ice Cream", price=2.99, category ="Ice Cream", is_available=1),
+            MenuItem(item_name="Mint Ice Cream", price=2.99, category="Ice Cream", is_available=1),
+           
         ]
         
         # Add all items to database

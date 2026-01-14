@@ -34,10 +34,30 @@ async def handle_request(request: Request, db: Session = Depends(get_db)):
        # based on the structure of the WebhookRequest from Dialogflow
        intent = payload['queryResult']['intent']['displayName']
        parameters = payload['queryResult']['parameters']
-       session_id = payload.get('session', 'default-session')
        
-       print(f"Received intent: {intent}")
+       # Extract session ID from the session path
+       session_path = payload.get('session', '')
+       if session_path:
+           # Extract session ID from path like "projects/.../sessions/SESSION_ID"
+           session_id = session_path.split('/')[-1] if '/' in session_path else session_path
+       else:
+           session_id = 'default-session'
+       
+       print(f"Intent: {intent}")
+       print(f"Session ID: {session_id}")
        print(f"Parameters: {parameters}")
+       
+       # Use original values from parameters if available for better matching
+       food_items = parameters.get("food-item", [])
+       food_items_original = parameters.get("food-item.original", [])
+       
+       # Prefer original values for better menu item matching
+       if food_items_original:
+           # Capitalize each word for better matching (e.g., "chicken pizza" -> "Chicken Pizza")
+           food_items = [item.title() for item in food_items_original]
+       elif food_items:
+           # If no original, try to use the extracted values
+           food_items = [item if isinstance(item, str) else str(item) for item in food_items]
 
        # Handle different intents
        if intent == "track.order - context: ongoing-tracking" or intent == "track.order":
@@ -58,7 +78,6 @@ async def handle_request(request: Request, db: Session = Depends(get_db)):
            })
        
        elif intent == "new.order":
-           food_items = parameters.get("food-item", [])
            numbers = parameters.get("number", [])
            
            if not food_items:
@@ -76,7 +95,6 @@ async def handle_request(request: Request, db: Session = Depends(get_db)):
            })
        
        elif intent == "order.add - context: ongoing-order":
-           food_items = parameters.get("food-item", [])
            numbers = parameters.get("number", [])
            
            if not food_items:
@@ -93,9 +111,7 @@ async def handle_request(request: Request, db: Session = Depends(get_db)):
                "fulfillmentText": response_text
            })
        
-       elif intent == "order.remove - context: ongoing-order":
-           food_items = parameters.get("food-item", [])
-           
+       elif intent == "order.remove - context: ongoing-order" or intent == "order.remove-context: ongoing-order":
            if not food_items:
                response_text = "What would you like to remove from your order?"
            else:
@@ -105,7 +121,7 @@ async def handle_request(request: Request, db: Session = Depends(get_db)):
                "fulfillmentText": response_text
            })
        
-       elif intent == "order.complete - context: ongoing-order":
+       elif intent == "order.complete - context: ongoing-order" or intent == "order.complete-context: ongoing-order":
            response_text = complete_order(session_id, db)
            
            return JSONResponse(content={
@@ -123,6 +139,7 @@ async def handle_request(request: Request, db: Session = Depends(get_db)):
        return JSONResponse(content={
            "fulfillmentText": "Sorry, something went wrong. Please try again."
        })
+
 
 @app.on_event("startup")
 async def startup_event():

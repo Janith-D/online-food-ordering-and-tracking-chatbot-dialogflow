@@ -11,11 +11,67 @@ inprogress_orders: Dict[str, Dict] = {}
 
 def get_menu_item_price(db: Session, item_name: str) -> Optional[float]:
     """
-    Get price of a menu item from database
+    Get price of a menu item from database with fuzzy matching
     """
+    # First try exact match
     menu_item = db.query(MenuItem).filter(MenuItem.item_name == item_name).first()
     if menu_item and menu_item.is_available:
         return menu_item.price
+    
+    # Try case-insensitive match
+    menu_item = db.query(MenuItem).filter(
+        MenuItem.item_name.ilike(item_name)
+    ).first()
+    if menu_item and menu_item.is_available:
+        return menu_item.price
+    
+    # Try partial match (e.g., "Chicken Pizza" contains "Pizza")
+    menu_item = db.query(MenuItem).filter(
+        MenuItem.item_name.ilike(f"%{item_name}%")
+    ).first()
+    if menu_item and menu_item.is_available:
+        return menu_item.price
+    
+    return None
+
+
+def find_menu_item_name(db: Session, item_name: str) -> Optional[str]:
+    """
+    Find the actual menu item name from database with fuzzy matching
+    Returns the correct name from database
+    """
+    # First try exact match
+    menu_item = db.query(MenuItem).filter(MenuItem.item_name == item_name).first()
+    if menu_item and menu_item.is_available:
+        return menu_item.item_name
+    
+    # Try case-insensitive exact match
+    menu_item = db.query(MenuItem).filter(
+        MenuItem.item_name.ilike(item_name)
+    ).first()
+    if menu_item and menu_item.is_available:
+        return menu_item.item_name
+    
+    # Try matching individual words BEFORE partial match
+    # (e.g., "chicken pizza" finds "BBQ Chicken Pizza" specifically)
+    words = item_name.lower().split()
+    if len(words) > 1:
+        # Build a query that checks if ALL words appear in the item name
+        all_items = db.query(MenuItem).filter(MenuItem.is_available == 1).all()
+        for item in all_items:
+            item_name_lower = item.item_name.lower()
+            # Check if all words from search term are in the menu item name
+            if all(word in item_name_lower for word in words):
+                return item.item_name
+    
+    # Try partial match as last resort (e.g., "Pizza" finds any pizza)
+    # This is less specific so comes last
+    menu_item = db.query(MenuItem).filter(
+        MenuItem.item_name.ilike(f"%{item_name}%")
+    ).first()
+    if menu_item and menu_item.is_available:
+        return menu_item.item_name
+    
     return None
 
 
@@ -29,17 +85,23 @@ def add_to_order(session_id: str, food_items: List[str], quantities: List[int], 
     current_order = inprogress_orders[session_id]
     
     for food_item, quantity in zip(food_items, quantities):
-        # Get price from database
-        price = get_menu_item_price(db, food_item)
+        # Find the actual menu item name (with fuzzy matching)
+        actual_item_name = find_menu_item_name(db, food_item)
         
-        if price is None:
+        if actual_item_name is None:
             return f"Sorry, {food_item} is not available on our menu."
         
-        # Add or update item in current order
-        if food_item in current_order:
-            current_order[food_item]["quantity"] += quantity
+        # Get price from database
+        price = get_menu_item_price(db, actual_item_name)
+        
+        if price is None:
+            return f"Sorry, {actual_item_name} is not available on our menu."
+        
+        # Add or update item in current order using the actual menu item name
+        if actual_item_name in current_order:
+            current_order[actual_item_name]["quantity"] += quantity
         else:
-            current_order[food_item] = {
+            current_order[actual_item_name] = {
                 "quantity": quantity,
                 "price": price
             }
@@ -63,11 +125,37 @@ def remove_from_order(session_id: str, food_items: List[str]) -> str:
     not_found_items = []
     
     for food_item in food_items:
+        # Try exact match first
         if food_item in current_order:
             del current_order[food_item]
             removed_items.append(food_item)
         else:
-            not_found_items.append(food_item)
+            # Try fuzzy matching - find items in order that match the search term
+            matched = False
+            food_item_lower = food_item.lower()
+            
+            # Try to find items that contain the search term or vice versa
+            for order_item_name in list(current_order.keys()):
+                order_item_lower = order_item_name.lower()
+                
+                # Check if search term matches order item (e.g., "pizza" matches "Margherita Pizza")
+                if food_item_lower in order_item_lower or order_item_lower in food_item_lower:
+                    del current_order[order_item_name]
+                    removed_items.append(order_item_name)
+                    matched = True
+                    break
+                
+                # Check word matching (all words from search term appear in order item)
+                search_words = food_item_lower.split()
+                if len(search_words) > 1:
+                    if all(word in order_item_lower for word in search_words):
+                        del current_order[order_item_name]
+                        removed_items.append(order_item_name)
+                        matched = True
+                        break
+            
+            if not matched:
+                not_found_items.append(food_item)
     
     response = ""
     if removed_items:
