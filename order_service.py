@@ -113,25 +113,34 @@ def add_to_order(session_id: str, food_items: List[str], quantities: List[int], 
     return f"Added to your order: {order_summary}. Would you like to add more items or complete your order?"
 
 
-def remove_from_order(session_id: str, food_items: List[str]) -> str:
+def remove_from_order(session_id: str, food_items: List[str], quantities: List[int] = None) -> str:
     """
     Remove items from in-progress order
+    If quantities provided, reduce by that amount; otherwise remove completely
     """
     if session_id not in inprogress_orders:
         return "You don't have any items in your order yet."
     
     current_order = inprogress_orders[session_id]
     removed_items = []
+    reduced_items = []
     not_found_items = []
     
-    for food_item in food_items:
+    # If no quantities specified, assume remove all (quantity = None for each item)
+    if quantities is None:
+        quantities = [None] * len(food_items)
+    
+    # Pad quantities list if shorter than food_items
+    while len(quantities) < len(food_items):
+        quantities.append(None)
+    
+    for food_item, quantity_to_remove in zip(food_items, quantities):
         # Try exact match first
+        matched_item = None
         if food_item in current_order:
-            del current_order[food_item]
-            removed_items.append(food_item)
+            matched_item = food_item
         else:
             # Try fuzzy matching - find items in order that match the search term
-            matched = False
             food_item_lower = food_item.lower()
             
             # Try to find items that contain the search term or vice versa
@@ -140,26 +149,37 @@ def remove_from_order(session_id: str, food_items: List[str]) -> str:
                 
                 # Check if search term matches order item (e.g., "pizza" matches "Margherita Pizza")
                 if food_item_lower in order_item_lower or order_item_lower in food_item_lower:
-                    del current_order[order_item_name]
-                    removed_items.append(order_item_name)
-                    matched = True
+                    matched_item = order_item_name
                     break
                 
                 # Check word matching (all words from search term appear in order item)
                 search_words = food_item_lower.split()
                 if len(search_words) > 1:
                     if all(word in order_item_lower for word in search_words):
-                        del current_order[order_item_name]
-                        removed_items.append(order_item_name)
-                        matched = True
+                        matched_item = order_item_name
                         break
+        
+        if matched_item:
+            current_quantity = current_order[matched_item]["quantity"]
             
-            if not matched:
-                not_found_items.append(food_item)
+            # If quantity_to_remove is None or >= current quantity, remove completely
+            if quantity_to_remove is None or quantity_to_remove >= current_quantity:
+                del current_order[matched_item]
+                removed_items.append(f"{matched_item} (all {current_quantity})")
+            else:
+                # Reduce quantity
+                current_order[matched_item]["quantity"] -= quantity_to_remove
+                remaining = current_order[matched_item]["quantity"]
+                reduced_items.append(f"{matched_item} (removed {quantity_to_remove}, {remaining} remaining)")
+        else:
+            not_found_items.append(food_item)
     
     response = ""
     if removed_items:
         response += f"Removed from your order: {', '.join(removed_items)}. "
+    
+    if reduced_items:
+        response += f"Updated: {', '.join(reduced_items)}. "
     
     if not_found_items:
         response += f"These items were not in your order: {', '.join(not_found_items)}. "

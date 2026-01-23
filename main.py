@@ -251,13 +251,17 @@ def handle_add_to_order(parameters: Dict[str, Any], session_id: str, db: Session
 def handle_remove_from_order(parameters: Dict[str, Any], session_id: str, db: Session) -> DialogflowResponse:
     """Handle removing items from ongoing order"""
     food_items = parameters.get("food-item", [])
+    numbers = parameters.get("number", [])
     
     if not food_items:
         return DialogflowResponse(
             fulfillmentText="What would you like to remove from your order?"
         )
     
-    response_text = remove_from_order(session_id, food_items)
+    # Extract quantities if provided (e.g., "remove 2 pizzas")
+    quantities = numbers if numbers else None
+    
+    response_text = remove_from_order(session_id, food_items, quantities)
     
     return DialogflowResponse(fulfillmentText=response_text)
 
