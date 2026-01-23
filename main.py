@@ -34,6 +34,7 @@ async def handle_request(request: Request, db: Session = Depends(get_db)):
        # based on the structure of the WebhookRequest from Dialogflow
        intent = payload['queryResult']['intent']['displayName']
        parameters = payload['queryResult']['parameters']
+       query_text = payload['queryResult'].get('queryText', '')
        
        # Extract session ID from the session path
        session_path = payload.get('session', '')
@@ -44,6 +45,7 @@ async def handle_request(request: Request, db: Session = Depends(get_db)):
            session_id = 'default-session'
        
        print(f"Intent: {intent}")
+       print(f"Query Text: {query_text}")
        print(f"Session ID: {session_id}")
        print(f"Parameters: {parameters}")
        
@@ -115,7 +117,46 @@ async def handle_request(request: Request, db: Session = Depends(get_db)):
            if not food_items:
                response_text = "What would you like to remove from your order?"
            else:
-               response_text = remove_from_order(session_id, food_items)
+               # Extract numbers from parameters, but validate against query text
+               numbers = parameters.get("number", [])
+               
+               # Parse the query text to extract actual numbers mentioned
+               import re
+               query_lower = query_text.lower()
+               
+               # Number word mapping
+               number_words = {
+                   'one': 1, 'a': 1, 'an': 1,
+                   'two': 2, 'three': 3, 'four': 4, 'five': 5,
+                   'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+               }
+               
+               # Extract numbers from query text
+               actual_quantities = []
+               
+               # Check for number words in query
+               for word, value in number_words.items():
+                   if re.search(r'\b' + word + r'\b', query_lower):
+                       actual_quantities.append(value)
+                       break
+               
+               # Check for digit numbers in query
+               digit_matches = re.findall(r'\b\d+\b', query_text)
+               if digit_matches and not actual_quantities:
+                   actual_quantities = [int(d) for d in digit_matches]
+               
+               # Use actual quantities from query text if found, otherwise use parameter numbers
+               # But default to None (remove all) if no explicit quantity found
+               if actual_quantities:
+                   quantities = actual_quantities
+               elif numbers and 'remove all' not in query_lower:
+                   # Only use parameter numbers if query suggests using them
+                   # and it's not a "remove all" command
+                   quantities = None  # Default to remove all to avoid confusion
+               else:
+                   quantities = None  # Remove all
+               
+               response_text = remove_from_order(session_id, food_items, quantities)
            
            return JSONResponse(content={
                "fulfillmentText": response_text
@@ -128,10 +169,22 @@ async def handle_request(request: Request, db: Session = Depends(get_db)):
                "fulfillmentText": response_text
            })
        
+       elif intent == "store.hours" or intent == "store hours":
+           # Fixed response for store hours
+           response_text = """Here are our store hours:
+Monday - Friday: 10:00 AM to 10:00 PM
+Saturday - Sunday: 11:00 AM to 11:00 PM
+
+We're open every day! You can place orders anytime during these hours."""
+           
+           return JSONResponse(content={
+               "fulfillmentText": response_text
+           })
+       
        else:
            # Default response for unhandled intents
            return JSONResponse(content={
-               "fulfillmentText": "I'm not sure how to help with that. You can place a new order or track an existing one."
+               "fulfillmentText": "I'm not sure how to help with that. You can:\n1. Place a new order\n2. Track an existing order\n3. Ask about store hours"
            })
    
    except Exception as e:
@@ -154,7 +207,12 @@ async def root():
     return {
         "status": "ok",
         "message": "Food Ordering Chatbot API is running",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "features": [
+            "1. Place new food orders",
+            "2. Track existing orders",
+            "3. Check store hours"
+        ]
     }
 
 
