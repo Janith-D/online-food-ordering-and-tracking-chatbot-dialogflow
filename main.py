@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 import uvicorn
@@ -21,6 +22,15 @@ app = FastAPI(
     title="Food Ordering Chatbot API",
     description="Backend API for Dialogflow-based food ordering chatbot",
     version="1.0.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:4200", "http://127.0.0.1:4200"],  # Adjust this to your frontend's origin in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.post("/")
