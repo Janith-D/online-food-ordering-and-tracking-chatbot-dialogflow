@@ -24,10 +24,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
+<<<<<<< HEAD
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:4200", "http://127.0.0.1:4200"],  # Adjust this to your frontend's origin in production
+=======
+# Add CORS middleware to allow Angular app to communicate
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:4200", "http://127.0.0.1:4200"],
+>>>>>>> 4ec8bb155dbdb3afe8e30ca56e092e4a256d1bfe
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
