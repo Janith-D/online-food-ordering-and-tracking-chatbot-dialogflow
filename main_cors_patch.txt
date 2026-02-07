@@ -1,0 +1,34 @@
+from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from typing import Dict, Any
+import uvicorn
+
+from database import get_db, init_db
+from schemas import DialogflowRequest, DialogflowResponse
+from order_service import (
+    add_to_order, 
+    remove_from_order, 
+    complete_order,
+    track_order,
+    get_order_summary
+)
+from config import settings
+
+
+# Create FastAPI app
+app = FastAPI(
+    title="Food Ordering Chatbot API",
+    description="Backend API for Dialogflow-based food ordering chatbot",
+    version="1.0.0"
+)
+
+# Add CORS middleware to allow Angular app to communicate
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:4200", "http://127.0.0.1:4200"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
